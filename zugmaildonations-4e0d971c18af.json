@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "zugmaildonations",
+  "private_key_id": "4e0d971c18af3aab69f5260b8052dcaf6c04c40a",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvwIBADANBgkqhkiG9w0BAQEFAASCBKkwggSlAgEAAoIBAQDVmQRVUW5gaav0\nwgwTJHhG8LE8zTk0wGXBPPixweFWo0sZo6AOj5wZZdgxYIOY8bFOVK/00Gt2OlHu\nhG7s4V0o/i3aELOF2prlnI6Xt3OoClKbugWL1t5HetyXHAK7PQWGCcchytZa3GFI\noCsUc/EgE/G3PWYrBU4fXKvZKcmMFN4+LzOjiCa3zMJoEGHcMtQQggNhzPmDsrPm\nXQcSTuwFYO3yFQQvuw8o6YwExgEEBgIQluVSec7UmYMBgfNfYu2kRdH5y5b1CKCv\ne3yS6rVOu+E5gngUFKp462TSf0G26/uiouyVDBJuYj/rIcWGvbxNoxDNxpwtNwep\nx2DJHLqbAgMBAAECggEAZcgFfZZRD1YrX3U8Bb8iJUO6YSu1r8JieoNQSnwFoaAs\nQCptMaMTEjMqotTHwJCjGZ1XP0Q1gN/nfM3UgcId/1Oni7rboNP7baB9fiQn05If\nrR8mV21q/Aq6pLLvRkOcpzNvlVWvcRqErPPNs3BQHSYDz3pNfgCIKn+hT9kOtlW4\nYhY0B0DKV2HUvvoAQ/qjVFZF2Z/mQlkK0xeGPiOlk+ovvnDxMNEBVOoE7PwJdfmK\nEQwGJIivgM/aRzSn8+KS7o/LLMw+NdddjTDl+8u0z7dmcH9k88Pewtb/uZg9Cnl+\njftZVH+vCGIQMgEJbGed1YJfUfbQBfDaIzQm4spl8QKBgQDwsavq+YU/QbpeH6Dc\n6brpT/PEoNJH0krChd2AY2BPifWi2HZ3dNDf7J2JKzFLPwz8HJzIzXcR8V94zK1i\nyRtbVD7fMm0SlDQn2nikyOSBvXL/66/SK2C3N1eFQ+q4JI7RNM+EpO0c/4Ff0LMO\n/hKZwAMLgOVJJVzjfXexSO7hUwKBgQDjLjyWbAPbvt1DO2+7AG34jH0DLvFVYPpQ\n8UFN5Mx+3CKgD+ZQUQSL5p0aKeJN0y3Uzd20mncJHLaClhgkzT9sudWqxnSzEhBH\nHil32RgCeBvAZE9aZGm5xPgh4uZs3+ZXtUjGf1sbkT/yA6ZSSGyeaqLsjJ1d+fM9\nzmXzAfWwmQKBgQDmKD9Itckgr+1SS9Q66pV8vKNRBqeNXh123SLtvhk+daGZUnwV\nxnJlbZFGtTKxzVzRR1r0+OQ/GBw/GxlBOSUbs/da3pFGDsnAwjxS9nbrSQlKh0jd\nI/WbvSPHnyY3Z13Z1zIImNzTuc8wnBRc5b9LnjxLJ7oYs82bC0MFF8S1WQKBgQDU\nA9CTaVboe2WvWwbY9HutHB+HGwYq8ghqBd02PrMCKZs+2dfNWO7vSVeQlUoX61+4\nXC/uXsF8hYlmsYDyx4HLjFr1t6QtgkwisulsafRYSZNMp9DOwStSLZqMtV7qeMJV\nVGAIr85tGc8do35TCDgmV8qZDFnI3H2/TqIiec+68QKBgQC/gClEkgzLpyxNnLit\nck0NOuG2sq+zFkFKk/f75dq2YKEFFzfgNyh7fc1q9RT9GZjdTMDYp2Cv0nMPFOPz\nwJRn6iYW+psb9u82iu0IuFOzJchsrhX7mWFNUGAVUw/fKo0NsQMGVGiledLB4IT6\nOhtVNp1ASE9AT9szFhbhrFnEbQ==\n-----END PRIVATE KEY-----\n",
+  "client_email": "rafflebot@zugmaildonations.iam.gserviceaccount.com",
+  "client_id": "110576380554027924200",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/rafflebot%40zugmaildonations.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
