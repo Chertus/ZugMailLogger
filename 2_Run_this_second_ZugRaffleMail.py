@@ -50,16 +50,23 @@ with open('item_stacks.json', 'r') as file:
     item_stacks = json.load(file)
 
 # Compiled regular expression for efficiency
-parse_pattern = re.compile(r'\[(\d{4}-\d{2}-\d{2})\s\d{2}:\d{2}:\d{2}\]\s+(.*?)\s+received item\(s\) from\s+(\w+).*?Receive Item\(s\):\s+(.*?)\n', re.DOTALL)
+parse_pattern = re.compile(r'\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]\s+(.*?)\s+received item\(s\) from\s+(\w+).*?Receive Item\(s\):\s+(.*?)\n', re.DOTALL)
 
 # Function to parse the text
 def parse_text(text):
     parsed_data = []
+    processed_entries = set()
     matches = parse_pattern.finditer(text)
 
     for match in matches:
-        date, _, sender, items = match.groups()
-        month_day = '-'.join(date.split('-')[1:])
+        full_date, _, sender, items = match.groups()
+
+        # Check for duplicates
+        entry_id = f"{full_date}_{sender}"
+        if entry_id in processed_entries:
+            continue
+        processed_entries.add(entry_id)
+
         sender = character_name_mapping.get(sender, sender)
         item_lines = items.strip().split('\n')
         for item_line in item_lines:
@@ -69,7 +76,7 @@ def parse_text(text):
                 quantity = int(quantity)
                 stack_size = item_stacks.get(item_name, 1)
                 full_stacks = math.floor(quantity / stack_size)
-                parsed_data.append([month_day, sender, leading_symbols + item_name, full_stacks])
+                parsed_data.append([full_date, sender, leading_symbols + item_name, full_stacks])
 
     return parsed_data
 
@@ -86,24 +93,48 @@ def read_google_doc(doc_id):
 
 # Function to update Google Sheets
 def update_google_sheets(sheet_id, data):
-    # Determine the next empty row
+    # Fetch existing data in columns A-D
     sheet = sheets_service.spreadsheets()
-    result = sheet.values().get(spreadsheetId=sheet_id, range='Donation Logs Active Week!A:D').execute()
-    values = result.get('values', [])
-    next_row = len(values) + 1
+    range_to_check = 'Donation Logs Active Week!A:D'
+    result = sheet.values().get(spreadsheetId=sheet_id, range=range_to_check).execute()
+    existing_values = result.get('values', [])
 
-    # Specify the range for the new data
-    range_ = f'Donation Logs Active Week!A{next_row}:D{next_row+len(data)-1}'
+    # Convert existing values to a set for efficient comparison
+    existing_entries = set(tuple(row) for row in existing_values)
+
+    # Filter out duplicate entries and count them
+    new_entries = []
+    skipped_duplicates = 0
+    for row in data:
+        if tuple(row) in existing_entries:
+            skipped_duplicates += 1
+        else:
+            new_entries.append(row)
+
+    # Display counts
+    print(f"Skipped {skipped_duplicates} duplicate entries.")
+    print(f"Adding {len(new_entries)} new entries.")
+
+    # Check if there are new entries to update
+    if not new_entries:
+        print("No new entries to update.")
+        return
+
+    # Determine the next empty row for the new data
+    next_row = len(existing_values) + 1
+    range_ = f'Donation Logs Active Week!A{next_row}:D{next_row+len(new_entries)-1}'
 
     # Prepare the values to be inserted
-    body = {'values': data}
+    body = {'values': new_entries}
 
-    # Use the Sheets API to update the sheet
+    # Use the Sheets API to append the new data
     result = sheet.values().update(
         spreadsheetId=sheet_id, range=range_,
         valueInputOption='USER_ENTERED', body=body).execute()
 
     print(f"{result.get('updatedCells')} cells updated.")
+
+
 
 # Main execution
 check_and_install_packages(required_packages)
