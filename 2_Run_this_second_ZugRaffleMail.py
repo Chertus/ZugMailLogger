@@ -49,8 +49,15 @@ with open('character_mapping.json', 'r') as file:
 with open('item_stacks.json', 'r') as file:
     item_stacks = json.load(file)
 
+# Define the blacklist of player names
+blacklisted_players = {"Alinorin", "Izlich", "Joulesburne", "Cowching", "Horde"}
+
 # Compiled regular expression for efficiency
 parse_pattern = re.compile(r'\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]\s+(.*?)\s+received item\(s\) from\s+(\w+).*?Receive Item\(s\):\s+(.*?)\n', re.DOTALL)
+
+# Function to normalize data rows
+def normalize_row(row):
+    return [str(item).strip() for item in row]
 
 # Function to parse the text
 def parse_text(text):
@@ -60,6 +67,10 @@ def parse_text(text):
 
     for match in matches:
         full_date, _, sender, items = match.groups()
+
+        # Skip entries from blacklisted players
+        if sender in blacklisted_players:
+            continue
 
         # Check for duplicates
         entry_id = f"{full_date}_{sender}"
@@ -99,19 +110,19 @@ def update_google_sheets(sheet_id, data):
     result = sheet.values().get(spreadsheetId=sheet_id, range=range_to_check).execute()
     existing_values = result.get('values', [])
 
-    # Convert existing values to a set for efficient comparison
-    existing_entries = set(tuple(row) for row in existing_values)
+    # Normalize existing data for comparison
+    existing_normalized = set(tuple(normalize_row(row)) for row in existing_values)
 
     # Filter out duplicate entries and count them
     new_entries = []
     skipped_duplicates = 0
     for row in data:
-        if tuple(row) in existing_entries:
+        normalized_row = normalize_row(row)
+        if tuple(normalized_row) in existing_normalized:
             skipped_duplicates += 1
-        else:
-            new_entries.append(row)
+            continue
+        new_entries.append(row)
 
-    # Display counts
     print(f"Skipped {skipped_duplicates} duplicate entries.")
     print(f"Adding {len(new_entries)} new entries.")
 
@@ -122,19 +133,47 @@ def update_google_sheets(sheet_id, data):
 
     # Determine the next empty row for the new data
     next_row = len(existing_values) + 1
-    range_ = f'Donation Logs Active Week!A{next_row}:D{next_row+len(new_entries)-1}'
+    range_for_new_data = f'Donation Logs Active Week!A{next_row}:D{next_row+len(new_entries)-1}'
 
     # Prepare the values to be inserted
     body = {'values': new_entries}
 
     # Use the Sheets API to append the new data
     result = sheet.values().update(
-        spreadsheetId=sheet_id, range=range_,
+        spreadsheetId=sheet_id, range=range_for_new_data,
         valueInputOption='USER_ENTERED', body=body).execute()
 
     print(f"{result.get('updatedCells')} cells updated.")
 
+# Function to remove duplicates from Google Sheets
+def remove_duplicates_from_sheet(sheet_id, range_to_check):
+    # Fetch the updated data in the specified range
+    result = sheets_service.spreadsheets().values().get(spreadsheetId=sheet_id, range=range_to_check).execute()
+    updated_values = result.get('values', [])
 
+    # Normalize and identify duplicates
+    seen = set()
+    unique_values = []
+    for row in updated_values:
+        normalized_row = tuple(normalize_row(row))
+        if normalized_row not in seen:
+            seen.add(normalized_row)
+            unique_values.append(row)
+
+    # Check if duplicates were found
+    if len(unique_values) != len(updated_values):
+        print(f"Removing {len(updated_values) - len(unique_values)} duplicate entries.")
+
+        # Clear the existing range
+        sheets_service.spreadsheets().values().clear(spreadsheetId=sheet_id, range=range_to_check, body={}).execute()
+
+        # Write back the unique values
+        body = {'values': unique_values}
+        sheets_service.spreadsheets().values().update(
+            spreadsheetId=sheet_id, range=range_to_check,
+            valueInputOption='USER_ENTERED', body=body).execute()
+    else:
+        print("No additional duplicates found.")
 
 # Main execution
 check_and_install_packages(required_packages)
@@ -143,3 +182,5 @@ doc_id = '1n_ZwKP_wA4FGNQNpVwyixcrX_NqrjMWyxcjpFlVBM0Y'
 raw_text = read_google_doc(doc_id)
 parsed_data = parse_text(raw_text)
 update_google_sheets(sheet_id, parsed_data)
+final_range_to_check = 'Donation Logs Active Week!A:D'
+remove_duplicates_from_sheet(sheet_id, final_range_to_check)
