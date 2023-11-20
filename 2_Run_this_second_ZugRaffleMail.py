@@ -1,36 +1,25 @@
 import re
 import math
 import httplib2
+import json
 from googleapiclient.discovery import build
 from oauth2client.service_account import ServiceAccountCredentials
 
 # Required packages
 required_packages = ['google-api-python-client', 'oauth2client']
 
+# Load JSON data
+with open('character_mapping.json') as file:
+    character_name_mapping = json.load(file)
+
+with open('player_blacklist.json') as file:
+    blacklisted_players = json.load(file)
+
+with open('item_stacks.json') as file:
+    item_stacks = json.load(file)
+
 # Regular expression pattern for parsing the text
 parse_pattern = re.compile(r'\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]\n\s+(.*?) received item\(s\) from (.*?)\n\s+Receive Item\(s\):\s*\n((?:\s*\[\d+\] \[.*?\] \(\d+\)\n)+)')
-
-# Character name mapping
-character_name_mapping = {
-    "Fitchbister": "Idolizeme",
-    "Shiftables": "Idolizeme",
-    # Add other mappings here
-}
-
-# Blacklisted players
-blacklisted_players = {
-    "Raztrad": True,
-    "Grizzlegom": True,
-    "Alinorin": True,
-    "Izlich": True
-}
-
-# Item stack sizes
-item_stacks = {
-    "Adder's Tongue": 20,
-    "Ametrine": 1,
-    # Add other items here
-}
 
 # Function to check and install required packages
 def check_and_install_packages(packages):
@@ -52,8 +41,13 @@ def read_google_doc(doc_id):
 
     # Request to read the document
     document = service.documents().get(documentId=doc_id).execute()
-    raw_text = document.get('body').get('content', '')
-    return raw_text
+    raw_text = []
+    for element in document.get('body').get('content', []):
+        if 'paragraph' in element:
+            for para_element in element['paragraph']['elements']:
+                if 'textRun' in para_element:
+                    raw_text.append(para_element['textRun']['content'])
+    return ''.join(raw_text)
 
 # Function to parse the text
 def parse_text(text):
