@@ -136,5 +136,5 @@ doc_id = '1n_ZwKP_wA4FGNQNpVwyixcrX_NqrjMWyxcjpFlVBM0Y'
 
 raw_text = read_google_doc(doc_id)
 parsed_data = parse_text(raw_text)
-update_google_sheets('1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms', parsed_data)
-remove_duplicates_and_blacklisted_from_sheet('1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms', 'Donation Logs Active Week!A:D')
+update_google_sheets('1W_GKIr2yKxt5fF4KsyY4DaENZJSRYI062R6l7S07sOE', parsed_data)
+remove_duplicates_and_blacklisted_from_sheet('1W_GKIr2yKxt5fF4KsyY4DaENZJSRYI062R6l7S07sOE', 'Donation Logs Active Week!A:D')
