@@ -1,64 +1,59 @@
-import os
-import subprocess
-import sys
-import json
-from googleapiclient import discovery
-from google.oauth2 import service_account
 import re
 import math
-import pkg_resources
+import httplib2
+from googleapiclient.discovery import build
+from oauth2client.service_account import ServiceAccountCredentials
 
-# List of required packages
-required_packages = [
-    'google-api-python-client', 
-    'google-auth',
-    'google-auth-httplib2',
-    'google-auth-oauthlib'
-]
+# Required packages
+required_packages = ['google-api-python-client', 'oauth2client']
 
-# Function to check and install packages
+# Regular expression pattern for parsing the text
+parse_pattern = re.compile(r'\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]\n\s+(.*?) received item\(s\) from (.*?)\n\s+Receive Item\(s\):\s*\n((?:\s*\[\d+\] \[.*?\] \(\d+\)\n)+)')
+
+# Character name mapping
+character_name_mapping = {
+    "Fitchbister": "Idolizeme",
+    "Shiftables": "Idolizeme",
+    # Add other mappings here
+}
+
+# Blacklisted players
+blacklisted_players = {
+    "Raztrad": True,
+    "Grizzlegom": True,
+    "Alinorin": True,
+    "Izlich": True
+}
+
+# Item stack sizes
+item_stacks = {
+    "Adder's Tongue": 20,
+    "Ametrine": 1,
+    # Add other items here
+}
+
+# Function to check and install required packages
 def check_and_install_packages(packages):
+    import subprocess
+    import sys
+
     for package in packages:
         try:
-            pkg_resources.get_distribution(package)
-            print(f"{package} is already installed.")
-        except pkg_resources.DistributionNotFound:
-            print(f"Installing {package}...")
+            __import__(package)
+        except ImportError:
             subprocess.check_call([sys.executable, "-m", "pip", "install", package])
 
-# Google API setup
-SCOPES = ['https://www.googleapis.com/auth/documents.readonly',
-          'https://www.googleapis.com/auth/spreadsheets']
-SERVICE_ACCOUNT_FILE = 'D:\\Projects\\ZugMailRaffleUpdater\\zugmaildonations-4e0d971c18af.json'
+# Function to read data from Google Doc
+def read_google_doc(doc_id):
+    # Authentication and building the service
+    credentials = ServiceAccountCredentials.from_json_keyfile_name('credentials.json', ['https://www.googleapis.com/auth/documents.readonly'])
+    http = credentials.authorize(httplib2.Http())
+    service = build('docs', 'v1', http=http)
 
-credentials = service_account.Credentials.from_service_account_file(
-        SERVICE_ACCOUNT_FILE, scopes=SCOPES)
-
-# Initialize the Google Docs and Sheets API clients
-docs_service = discovery.build('docs', 'v1', credentials=credentials)
-sheets_service = discovery.build('sheets', 'v4', credentials=credentials)
-
-# Define the sheet_id variable
-sheet_id = '1W_GKIr2yKxt5fF4KsyY4DaENZJSRYI062R6l7S07sOE'
-
-# Load character name mapping from file
-with open('character_mapping.json', 'r') as file:
-    character_name_mapping = json.load(file)
-
-# Load item stacks from file
-with open('item_stacks.json', 'r') as file:
-    item_stacks = json.load(file)
-
-# Load the blacklist of player names
-with open('player_blacklist.json', 'r') as file:
-    blacklisted_players = json.load(file)
-
-# Compiled regular expression for efficiency
-parse_pattern = re.compile(r'\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]\s+(.*?)\s+received item\(s\) from\s+(\w+).*?Receive Item\(s\):\s+(.*?)\n', re.DOTALL)
-
-# Function to normalize data rows
-def normalize_row(row):
-    return [str(item).strip() for item in row]
+    # Request to read the document
+    document = service.documents().get(documentId=doc_id).execute()
+    raw_text = document.get('body').get('content', '')
+    return raw_text
 
 # Function to parse the text
 def parse_text(text):
@@ -92,89 +87,54 @@ def parse_text(text):
 
     return parsed_data
 
-# Function to read the document
-def read_google_doc(doc_id):
-    document = docs_service.documents().get(documentId=doc_id).execute()
-    text_content = ''
-    for element in document.get('body').get('content'):
-        if 'paragraph' in element:
-            for para_element in element['paragraph']['elements']:
-                if 'textRun' in para_element:
-                    text_content += para_element['textRun']['content']
-    return text_content
-
 # Function to update Google Sheets
 def update_google_sheets(sheet_id, data):
-    # Fetch existing data in columns A-D
-    sheet = sheets_service.spreadsheets()
-    range_to_check = 'Donation Logs Active Week!A:D'
-    result = sheet.values().get(spreadsheetId=sheet_id, range=range_to_check).execute()
-    existing_values = result.get('values', [])
+    # Authentication and building the service
+    credentials = ServiceAccountCredentials.from_json_keyfile_name('credentials.json', ['https://www.googleapis.com/auth/spreadsheets'])
+    http = credentials.authorize(httplib2.Http())
+    service = build('sheets', 'v4', http=http)
 
-    # Normalize existing data for comparison
-    existing_normalized = set(tuple(normalize_row(row)) for row in existing_values)
+    # Prepare the data for Sheets API
+    body = {'values': data}
+    range_name = 'Donation Logs Active Week!A:D'
 
-    # Filter out duplicate entries and count them
-    new_entries = []
-    skipped_duplicates = 0
-    for row in data:
-        normalized_row = normalize_row(row)
-        if tuple(normalized_row) in existing_normalized:
-            skipped_duplicates += 1
-            continue
-        new_entries.append(row)
-
-    print(f"Skipped {skipped_duplicates} duplicate entries.")
-    print(f"Adding {len(new_entries)} new entries.")
-
-    # Check if there are new entries to update
-    if not new_entries:
-        print("No new entries to update.")
-        return
-
-    # Determine the next empty row for the new data
-    next_row = len(existing_values) + 1
-    range_for_new_data = f'Donation Logs Active Week!A{next_row}:D{next_row+len(new_entries)-1}'
-
-    # Prepare the values to be inserted
-    body = {'values': new_entries}
-
-    # Use the Sheets API to append the new data
-    result = sheet.values().update(
-        spreadsheetId=sheet_id, range=range_for_new_data,
+    # Update the sheet
+    service.spreadsheets().values().append(
+        spreadsheetId=sheet_id, range=range_name,
         valueInputOption='USER_ENTERED', body=body).execute()
 
-    print(f"{result.get('updatedCells')} cells updated.")
+# Function to remove duplicates and blacklisted entries from the sheet
+def remove_duplicates_and_blacklisted_from_sheet(sheet_id, range_to_check):
+    # Authentication and building the service
+    credentials = ServiceAccountCredentials.from_json_keyfile_name('credentials.json', ['https://www.googleapis.com/auth/spreadsheets'])
+    http = credentials.authorize(httplib2.Http())
+    sheets_service = build('sheets', 'v4', http=http)
 
-# Function to remove duplicates from Google Sheets
-def remove_duplicates_from_sheet(sheet_id, range_to_check):
-    # Fetch the updated data in the specified range
-    result = sheets_service.spreadsheets().values().get(spreadsheetId=sheet_id, range=range_to_check).execute()
-    updated_values = result.get('values', [])
+    # Read the current data from the sheet
+    result = sheets_service.spreadsheets().values().get(
+        spreadsheetId=sheet_id, range=range_to_check).execute()
+    values = result.get('values', [])
 
-    # Normalize and identify duplicates
-    seen = set()
+    # Process for duplicates and blacklisted entries
     unique_values = []
-    for row in updated_values:
-        normalized_row = tuple(normalize_row(row))
-        if normalized_row not in seen:
-            seen.add(normalized_row)
+    seen_entries = set()
+    for row in values:
+        if len(row) < 4:
+            continue
+        date, sender, item, _ = row
+        entry_id = f"{date}_{sender}_{item}"
+        if entry_id not in seen_entries and sender not in blacklisted_players:
+            seen_entries.add(entry_id)
             unique_values.append(row)
 
-    # Check if duplicates were found
-    if len(unique_values) != len(updated_values):
-        print(f"Removing {len(updated_values) - len(unique_values)} duplicate entries.")
-
-        # Clear the existing range
-        sheets_service.spreadsheets().values().clear(spreadsheetId=sheet_id, range=range_to_check, body={}).execute()
-
-        # Write back the unique values
+    # Write back the unique values
+    if unique_values:
         body = {'values': unique_values}
         sheets_service.spreadsheets().values().update(
             spreadsheetId=sheet_id, range=range_to_check,
             valueInputOption='USER_ENTERED', body=body).execute()
     else:
-        print("No additional duplicates found.")
+        print("No additional duplicates or blacklisted entries found.")
 
 # Main execution
 check_and_install_packages(required_packages)
@@ -182,6 +142,5 @@ doc_id = '1n_ZwKP_wA4FGNQNpVwyixcrX_NqrjMWyxcjpFlVBM0Y'
 
 raw_text = read_google_doc(doc_id)
 parsed_data = parse_text(raw_text)
-update_google_sheets(sheet_id, parsed_data)
-final_range_to_check = 'Donation Logs Active Week!A:D'
-remove_duplicates_from_sheet(sheet_id, final_range_to_check)
+update_google_sheets('1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms', parsed_data)
+remove_duplicates_and_blacklisted_from_sheet('1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms', 'Donation Logs Active Week!A:D')
