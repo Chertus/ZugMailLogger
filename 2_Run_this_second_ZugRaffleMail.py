@@ -1,5 +1,6 @@
 import re
 import math
+import hashlib
 import httplib2
 import json
 from googleapiclient.discovery import build
@@ -52,7 +53,6 @@ def read_google_doc(doc_id):
 # Function to parse the text
 def parse_text(text):
     parsed_data = []
-    processed_entries = set()
     matches = parse_pattern.finditer(text)
 
     for match in matches:
@@ -61,12 +61,6 @@ def parse_text(text):
         # Skip entries from blacklisted players
         if sender in blacklisted_players and blacklisted_players[sender]:
             continue
-
-        # Check for duplicates
-        entry_id = f"{full_date}_{sender}"
-        if entry_id in processed_entries:
-            continue
-        processed_entries.add(entry_id)
 
         sender = character_name_mapping.get(sender, sender)
         item_lines = items.strip().split('\n')
@@ -77,7 +71,11 @@ def parse_text(text):
                 quantity = int(quantity)
                 stack_size = item_stacks.get(item_name, 1)
                 full_stacks = math.floor(quantity / stack_size)
-                parsed_data.append([full_date, sender, leading_symbols + item_name, full_stacks])
+
+                # Generate hash for duplicate detection
+                entry_hash = hashlib.md5(f"{full_date}_{sender}_{item_name}_{full_stacks}".encode()).hexdigest()
+
+                parsed_data.append([full_date, sender, leading_symbols + item_name, full_stacks, '', '', entry_hash])
 
     return parsed_data
 
@@ -90,7 +88,7 @@ def update_google_sheets(sheet_id, data):
 
     # Prepare the data for Sheets API
     body = {'values': data}
-    range_name = 'Donation Logs Active Week!A:D'
+    range_name = 'Donation Logs Active Week!A:D'  # Update only columns A to D
 
     # Update the sheet
     service.spreadsheets().values().append(
@@ -111,21 +109,20 @@ def remove_duplicates_and_blacklisted_from_sheet(sheet_id, range_to_check):
 
     # Process for duplicates and blacklisted entries
     unique_values = []
-    seen_entries = set()
+    seen_hashes = set()
     for row in values:
-        if len(row) < 4:
+        if len(row) < 7:
             continue
-        date, sender, item, _ = row
-        entry_id = f"{date}_{sender}_{item}"
-        if entry_id not in seen_entries and sender not in blacklisted_players:
-            seen_entries.add(entry_id)
-            unique_values.append(row)
+        date, sender, item, stacks, _, _, entry_hash = row
+        if entry_hash not in seen_hashes and sender not in blacklisted_players:
+            seen_hashes.add(entry_hash)
+            unique_values.append([date, sender, item, stacks])  # Exclude columns E, F, and G
 
     # Write back the unique values
     if unique_values:
         body = {'values': unique_values}
         sheets_service.spreadsheets().values().update(
-            spreadsheetId=sheet_id, range=range_to_check,
+            spreadsheetId=sheet_id, range='Donation Logs Active Week!A:D',  # Update only columns A to D
             valueInputOption='USER_ENTERED', body=body).execute()
     else:
         print("No additional duplicates or blacklisted entries found.")
