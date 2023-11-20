@@ -49,8 +49,9 @@ with open('character_mapping.json', 'r') as file:
 with open('item_stacks.json', 'r') as file:
     item_stacks = json.load(file)
 
-# Define the blacklist of player names
-blacklisted_players = {"Alinorin", "Izlich", "Joulesburne", "Cowching", "Horde"}
+# Load the blacklist of player names
+with open('player_blacklist.json', 'r') as file:
+    blacklisted_players = json.load(file)
 
 # Compiled regular expression for efficiency
 parse_pattern = re.compile(r'\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]\s+(.*?)\s+received item\(s\) from\s+(\w+).*?Receive Item\(s\):\s+(.*?)\n', re.DOTALL)
@@ -69,7 +70,7 @@ def parse_text(text):
         full_date, _, sender, items = match.groups()
 
         # Skip entries from blacklisted players
-        if sender in blacklisted_players:
+        if sender in blacklisted_players and blacklisted_players[sender]:
             continue
 
         # Check for duplicates
